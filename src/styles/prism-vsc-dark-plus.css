@@ -1,0 +1,197 @@
+/**
+ * VS Code Dark+ theme for Prism.js
+ * Based on Visual Studio Code's Dark+ theme
+ */
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #d4d4d4;
+  background: none;
+  text-shadow: none;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  tab-size: 4;
+  hyphens: none;
+}
+
+/* Code blocks */
+pre[class*="language-"] {
+  padding: 0;
+  margin: 0;
+  overflow: auto;
+}
+
+/* Inline code */
+:not(pre) > code[class*="language-"] {
+  padding: .1em;
+  border-radius: .3em;
+  white-space: normal;
+}
+
+.token.comment,
+.token.block-comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6a9955;
+}
+
+.token.punctuation {
+  color: #d4d4d4;
+}
+
+.token.tag,
+.token.namespace {
+  color: #569cd6;
+}
+
+.token.deleted {
+  color: #ff6188;
+}
+
+.token.function-name,
+.token.function {
+  color: #dcdcaa;
+}
+
+.token.boolean,
+.token.number {
+  color: #b5cea8;
+}
+
+.token.property,
+.token.constant,
+.token.symbol {
+  color: #9cdcfe;
+}
+
+.token.class-name {
+  color: #4ec9b0;
+}
+
+.token.selector,
+.token.important,
+.token.atrule,
+.token.builtin {
+  color: #c586c0;
+}
+
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.variable {
+  color: #ce9178;
+}
+
+.token.keyword,
+.token.control,
+.token.directive,
+.token.unit {
+  color: #569cd6;
+}
+
+.token.statement {
+  color: #c586c0;
+}
+
+.token.at-rule,
+.token.placeholder {
+  color: #9cdcfe;
+}
+
+.token.inserted {
+  color: #9bb955;
+}
+
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #d4d4d4;
+}
+
+.token.attr-name {
+  color: #9cdcfe;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.bold {
+  font-weight: bold;
+}
+
+.token.parameter {
+  color: #9cdcfe;
+}
+
+.token.module,
+.token.imports {
+  color: #c586c0;
+}
+
+.token.generic {
+  color: #4ec9b0;
+}
+
+/* JSX/TSX specific */
+.token.script {
+  color: #d4d4d4;
+}
+
+.token.jsx-tag .token.tag {
+  color: #569cd6;
+}
+
+.token.jsx-tag .token.attr-name {
+  color: #9cdcfe;
+}
+
+.token.jsx-tag .token.punctuation {
+  color: #808080;
+}
+
+/* TypeScript specific */
+.token.type,
+.token.interface {
+  color: #4ec9b0;
+}
+
+.token.decorator {
+  color: #dcdcaa;
+}
+
+/* JSON specific */
+.language-json .token.property {
+  color: #9cdcfe;
+}
+
+.language-json .token.string {
+  color: #ce9178;
+}
+
+/* CSS specific */
+.language-css .token.selector {
+  color: #d7ba7d;
+}
+
+.language-css .token.property {
+  color: #9cdcfe;
+}
+
+.language-css .token.important {
+  color: #569cd6;
+}

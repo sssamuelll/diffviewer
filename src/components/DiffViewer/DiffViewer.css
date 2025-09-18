@@ -1,0 +1,336 @@
+/* VS Code Dark Theme Colors */
+:root {
+  --vscode-bg: #1e1e1e;
+  --vscode-sidebar-bg: #252526;
+  --vscode-editor-bg: #1e1e1e;
+  --vscode-line-number: #858585;
+  --vscode-text: #d4d4d4;
+  --vscode-added-bg: rgba(155, 185, 85, 0.2);
+  --vscode-added-border: #9bb955;
+  --vscode-removed-bg: rgba(255, 97, 136, 0.2);
+  --vscode-removed-border: #ff6188;
+  --vscode-modified-bg: rgba(255, 197, 61, 0.2);
+  --vscode-modified-border: #ffc53d;
+  --vscode-header-bg: #2d2d30;
+  --vscode-border: #464647;
+  --vscode-hover: #2a2d2e;
+  --vscode-button-bg: #0e639c;
+  --vscode-button-hover: #1177bb;
+  --vscode-input-bg: #3c3c3c;
+  --vscode-input-border: #464647;
+}
+
+.diff-viewer-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--vscode-bg);
+  color: var(--vscode-text);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.diff-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: var(--vscode-header-bg);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.diff-viewer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.diff-viewer-title .icon {
+  width: 20px;
+  height: 20px;
+  color: #cccccc;
+}
+
+.diff-viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.diff-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.stat {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.stat.additions {
+  background-color: rgba(155, 185, 85, 0.3);
+  color: #9bb955;
+}
+
+.stat.deletions {
+  background-color: rgba(255, 97, 136, 0.3);
+  color: #ff6188;
+}
+
+.language-selector {
+  padding: 4px 8px;
+  background-color: var(--vscode-input-bg);
+  color: var(--vscode-text);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.language-selector:hover {
+  background-color: var(--vscode-hover);
+}
+
+.view-mode-toggle {
+  display: flex;
+  background-color: var(--vscode-input-bg);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-text);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.view-mode-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.view-mode-btn:hover {
+  background-color: var(--vscode-hover);
+}
+
+.view-mode-btn.active {
+  background-color: var(--vscode-button-bg);
+}
+
+.diff-viewer-input {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background-color: var(--vscode-border);
+  border-bottom: 1px solid var(--vscode-border);
+  min-height: 200px;
+  max-height: 300px;
+}
+
+.input-pane {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--vscode-editor-bg);
+}
+
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: var(--vscode-sidebar-bg);
+  border-bottom: 1px solid var(--vscode-border);
+}
+
+.pane-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #cccccc;
+}
+
+.clear-btn {
+  padding: 2px 8px;
+  background-color: transparent;
+  color: var(--vscode-text);
+  border: 1px solid var(--vscode-border);
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background-color: var(--vscode-hover);
+  border-color: var(--vscode-button-bg);
+}
+
+.code-input {
+  flex: 1;
+  padding: 12px;
+  background-color: var(--vscode-editor-bg);
+  color: var(--vscode-text);
+  border: none;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+}
+
+.code-input::placeholder {
+  color: #6e6e6e;
+  font-style: italic;
+}
+
+.diff-viewer-output {
+  flex: 1;
+  overflow: auto;
+  background-color: var(--vscode-editor-bg);
+}
+
+.diff-split-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  height: 100%;
+  background-color: var(--vscode-border);
+}
+
+.diff-unified-view {
+  height: 100%;
+}
+
+.diff-pane {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--vscode-editor-bg);
+  overflow: hidden;
+}
+
+.diff-pane-header {
+  padding: 8px 12px;
+  background-color: var(--vscode-sidebar-bg);
+  border-bottom: 1px solid var(--vscode-border);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #cccccc;
+}
+
+.diff-content {
+  flex: 1;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.diff-line {
+  display: flex;
+  min-height: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.diff-line-added {
+  background-color: var(--vscode-added-bg);
+}
+
+.diff-line-removed {
+  background-color: var(--vscode-removed-bg);
+}
+
+.diff-line-empty {
+  background-color: var(--vscode-sidebar-bg);
+  opacity: 0.5;
+}
+
+.line-number {
+  display: inline-block;
+  min-width: 50px;
+  padding: 0 8px;
+  color: var(--vscode-line-number);
+  text-align: right;
+  background-color: rgba(0, 0, 0, 0.2);
+  user-select: none;
+  border-right: 1px solid var(--vscode-border);
+}
+
+.diff-marker {
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+  color: var(--vscode-text);
+  font-weight: bold;
+  user-select: none;
+}
+
+.line-content {
+  flex: 1;
+  margin: 0;
+  padding: 0 12px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.line-content code {
+  font-family: inherit;
+  background: transparent;
+}
+
+/* Scrollbar styling */
+.diff-content::-webkit-scrollbar,
+.code-input::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.diff-content::-webkit-scrollbar-track,
+.code-input::-webkit-scrollbar-track {
+  background: var(--vscode-editor-bg);
+}
+
+.diff-content::-webkit-scrollbar-thumb,
+.code-input::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.diff-content::-webkit-scrollbar-thumb:hover,
+.code-input::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .diff-viewer-input {
+    grid-template-columns: 1fr;
+    max-height: 400px;
+  }
+  
+  .diff-split-view {
+    grid-template-columns: 1fr;
+  }
+  
+  .diff-viewer-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .line-number {
+    min-width: 40px;
+    font-size: 11px;
+  }
+}
