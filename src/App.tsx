@@ -1,11 +1,12 @@
 import DiffViewer from './components/DiffViewer';
 import './App.css';
+import type { ReactElement } from 'react';
 
-function App() {
+function App(): ReactElement {
   return (
-    <div className="app">
+    <main className="app">
       <DiffViewer />
-    </div>
+    </main>
   );
 }
 

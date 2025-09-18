@@ -1,4 +1,16 @@
-import { useState, useMemo } from 'react';
+import {
+  useMemo,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react';
+import type {
+  ClipboardEvent as ReactClipboardEvent,
+  Dispatch,
+  ReactElement,
+  SetStateAction,
+} from 'react';
 import * as Diff from 'diff';
 import Prism from 'prismjs';
 import '../../styles/prism-vsc-dark-plus.css';
@@ -9,90 +21,245 @@ import 'prismjs/components/prism-tsx';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-json';
 import './DiffViewer.css';
-import { type DiffLine, type DiffViewMode } from './types';
-import clsx from 'clsx';
+import type { DiffSegment, DiffStats, DiffSegmentType, LanguageOption } from './types';
 
-const DiffViewer: React.FC = () => {
-  const [leftText, setLeftText] = useState<string>('');
-  const [rightText, setRightText] = useState<string>('');
-  const [viewMode, setViewMode] = useState<DiffViewMode>('split');
-  const [language, setLanguage] = useState<string>('javascript');
+interface DiffComputation {
+  original: DiffSegment[];
+  modified: DiffSegment[];
+}
 
-  const diffLines = useMemo((): DiffLine[] => {
-    if (!leftText && !rightText) return [];
+interface EditorPaneProps {
+  title: string;
+  value: string;
+  placeholder: string;
+  segments: DiffSegment[];
+  onChange: (value: string) => void;
+  onClear: () => void;
+  onPaste: (event: ReactClipboardEvent<HTMLTextAreaElement>) => void;
+  highlightCode: (code: string) => string;
+}
 
-    const diff = Diff.diffLines(leftText, rightText);
-    const lines: DiffLine[] = [];
-    let leftLineNumber = 1;
-    let rightLineNumber = 1;
+const languages: LanguageOption[] = [
+  'javascript',
+  'typescript',
+  'jsx',
+  'tsx',
+  'css',
+  'json',
+  'plaintext',
+];
 
-    diff.forEach((part) => {
-      const partLines = part.value.split('\n').filter((_, index, arr) => 
-        index < arr.length - 1 || part.value[part.value.length - 1] !== '\n'
-      );
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
-      partLines.forEach((line) => {
-        if (part.added) {
-          lines.push({
-            type: 'added',
-            leftContent: '',
-            rightContent: line,
-            leftLineNumber: null,
-            rightLineNumber: rightLineNumber++,
-          });
-        } else if (part.removed) {
-          lines.push({
-            type: 'removed',
-            leftContent: line,
-            rightContent: '',
-            leftLineNumber: leftLineNumber++,
-            rightLineNumber: null,
-          });
-        } else {
-          lines.push({
-            type: 'unchanged',
-            leftContent: line,
-            rightContent: line,
-            leftLineNumber: leftLineNumber++,
-            rightLineNumber: rightLineNumber++,
-          });
-        }
-      });
-    });
+const computeDiffSegments = (original: string, modified: string): DiffComputation => {
+  const parts = Diff.diffWordsWithSpace(original, modified);
+  const originalSegments: DiffSegment[] = [];
+  const modifiedSegments: DiffSegment[] = [];
 
-    return lines;
-  }, [leftText, rightText]);
-
-  const highlightSyntax = (code: string): string => {
-    if (!code) return '';
-    try {
-      const grammar = Prism.languages[language] || Prism.languages.plaintext;
-      return Prism.highlight(code, grammar, language);
-    } catch {
-      return code;
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
+    if (!part.value) {
+      continue;
     }
-  };
 
-  const handlePaste = (setter: (value: string) => void) => (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text');
-    setter(text);
-  };
+    if (part.removed && parts[index + 1]?.added) {
+      const addedPart = parts[index + 1];
+      if (addedPart.value) {
+        originalSegments.push({ value: part.value, type: 'modify' });
+        modifiedSegments.push({ value: addedPart.value, type: 'modify' });
+      }
+      index += 1;
+      continue;
+    }
 
-  const stats = useMemo(() => {
-    const additions = diffLines.filter(l => l.type === 'added').length;
-    const deletions = diffLines.filter(l => l.type === 'removed').length;
-    return { additions, deletions };
-  }, [diffLines]);
+    if (part.added) {
+      modifiedSegments.push({ value: part.value, type: 'insert' });
+      continue;
+    }
+
+    if (part.removed) {
+      originalSegments.push({ value: part.value, type: 'delete' });
+      continue;
+    }
+
+    originalSegments.push({ value: part.value, type: 'equal' });
+    modifiedSegments.push({ value: part.value, type: 'equal' });
+  }
+
+  return { original: originalSegments, modified: modifiedSegments };
+};
+
+const countLines = (value: string): number => {
+  if (!value) {
+    return 0;
+  }
+
+  const lines = value.split('\n');
+  return lines.reduce((total, line, lineIndex) => {
+    const isLastLine = lineIndex === lines.length - 1;
+    if (line.length > 0 || !isLastLine) {
+      return total + 1;
+    }
+    return total;
+  }, 0);
+};
+
+const getStatsForType = (segments: DiffSegment[], type: DiffSegmentType): number =>
+  segments
+    .filter((segment) => segment.type === type)
+    .reduce((total, segment) => total + countLines(segment.value), 0);
+
+const EditorPane = ({
+  title,
+  value,
+  placeholder,
+  segments,
+  onChange,
+  onClear,
+  onPaste,
+  highlightCode,
+}: EditorPaneProps): ReactElement => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLPreElement>(null);
+
+  const handleScroll = useCallback(() => {
+    if (!textareaRef.current || !highlightRef.current) {
+      return;
+    }
+
+    highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+    highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+  }, []);
+
+  useEffect(() => {
+    handleScroll();
+  }, [handleScroll, value, segments]);
+
+  const highlightedSegments = useMemo(
+    () =>
+      segments.map((segment, index) => ({
+        key: `${segment.type}-${index}`,
+        type: segment.type,
+        html: highlightCode(segment.value) || escapeHtml(segment.value) || '&#8203;',
+      })),
+    [segments, highlightCode]
+  );
+
+  return (
+    <section className="editor-pane">
+      <div className="editor-pane-header">
+        <span className="pane-title">{title}</span>
+        <button type="button" className="clear-btn" onClick={onClear}>
+          Clear
+        </button>
+      </div>
+      <div className="editor-wrapper">
+        <textarea
+          ref={textareaRef}
+          className="code-input"
+          value={value}
+          spellCheck={false}
+          wrap="off"
+          aria-label={`${title} code editor`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          onChange={(event) => onChange(event.target.value)}
+          onScroll={handleScroll}
+          onPaste={onPaste}
+        />
+        <pre ref={highlightRef} className="code-highlight" aria-hidden="true">
+          <code>
+            {highlightedSegments.length > 0 ? (
+              highlightedSegments.map((segment) => (
+                <span
+                  key={segment.key}
+                  className={`diff-segment diff-segment-${segment.type}`}
+                  dangerouslySetInnerHTML={{ __html: segment.html }}
+                />
+              ))
+            ) : (
+              <span className="diff-segment" dangerouslySetInnerHTML={{ __html: '&#8203;' }} />
+            )}
+          </code>
+        </pre>
+        {!value && <span className="editor-placeholder">{placeholder}</span>}
+      </div>
+    </section>
+  );
+};
+
+const DiffViewer = (): ReactElement => {
+  const [originalText, setOriginalText] = useState<string>('');
+  const [modifiedText, setModifiedText] = useState<string>('');
+  const [language, setLanguage] = useState<LanguageOption>('javascript');
+
+  const { original: originalSegments, modified: modifiedSegments } = useMemo(
+    () => computeDiffSegments(originalText, modifiedText),
+    [originalText, modifiedText]
+  );
+
+  const highlightCode = useCallback(
+    (code: string) => {
+      if (!code) {
+        return '';
+      }
+
+      if (language === 'plaintext') {
+        return escapeHtml(code);
+      }
+
+      const grammar = Prism.languages[language];
+      if (!grammar) {
+        return escapeHtml(code);
+      }
+
+      try {
+        return Prism.highlight(code, grammar, language);
+      } catch {
+        return escapeHtml(code);
+      }
+    },
+    [language]
+  );
+
+  const stats = useMemo<DiffStats>(() => {
+    const additions = getStatsForType(modifiedSegments, 'insert');
+    const deletions = getStatsForType(originalSegments, 'delete');
+    const leftModifications = getStatsForType(originalSegments, 'modify');
+    const rightModifications = getStatsForType(modifiedSegments, 'modify');
+
+    return {
+      additions,
+      deletions,
+      modifications: Math.max(leftModifications, rightModifications),
+    };
+  }, [originalSegments, modifiedSegments]);
+
+  const createPasteHandler = useCallback(
+    (setter: Dispatch<SetStateAction<string>>) =>
+      (event: ReactClipboardEvent<HTMLTextAreaElement>) => {
+        event.preventDefault();
+        const text = event.clipboardData.getData('text');
+        setter(text);
+      },
+    []
+  );
 
   return (
     <div className="diff-viewer-container">
-      <div className="diff-viewer-header">
+      <header className="diff-viewer-header">
         <div className="diff-viewer-title">
-          <svg className="icon" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M13.5 2H10L9 1H4L3 2H2.5L2 2.5V6H3V3H6.5L7.5 2H8.5L9.5 3H13V12.5L13.5 13H10V14H13.5L14 13.5V2.5L13.5 2Z"/>
-            <path d="M5.56 8.56L7 7.12L5.56 5.69L4.85 6.4L5.44 7H0V8H5.44L4.85 8.6L5.56 8.56Z"/>
-            <path d="M9.41 12.41L8 11L9.41 9.59L10.12 10.3L9.53 10.89H12V5H11V9.89H9.53L10.12 9.3L9.41 9.34V12.41Z"/>
+          <svg className="icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M13.5 2H10L9 1H4L3 2H2.5L2 2.5V6H3V3H6.5L7.5 2H8.5L9.5 3H13V12.5L13.5 13H10V14H13.5L14 13.5V2.5L13.5 2Z" />
+            <path d="M5.56 8.56L7 7.12L5.56 5.69L4.85 6.4L5.44 7H0V8H5.44L4.85 8.6L5.56 8.56Z" />
+            <path d="M9.41 12.41L8 11L9.41 9.59L10.12 10.3L9.53 10.89H12V5H11V9.89H9.53L10.12 9.3L9.41 9.34V12.41Z" />
           </svg>
           <span>Diff Viewer</span>
         </div>
@@ -100,186 +267,45 @@ const DiffViewer: React.FC = () => {
           <div className="diff-stats">
             <span className="stat additions">+{stats.additions}</span>
             <span className="stat deletions">-{stats.deletions}</span>
+            <span className="stat modifications">~{stats.modifications}</span>
           </div>
-          <select 
-            className="language-selector"
-            value={language} 
-            onChange={(e) => setLanguage(e.target.value)}
-          >
-            <option value="javascript">JavaScript</option>
-            <option value="typescript">TypeScript</option>
-            <option value="jsx">JSX</option>
-            <option value="tsx">TSX</option>
-            <option value="css">CSS</option>
-            <option value="json">JSON</option>
-            <option value="plaintext">Plain Text</option>
-          </select>
-          <div className="view-mode-toggle">
-            <button 
-              className={clsx('view-mode-btn', { active: viewMode === 'split' })}
-              onClick={() => setViewMode('split')}
-              title="Split View"
+          <label className="language-label">
+            <span className="sr-only">Select language</span>
+            <select
+              className="language-selector"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as LanguageOption)}
             >
-              <svg viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1 1v14h14V1H1zm1 1h5.5v12H2V2zm6.5 12V2H14v12H8.5z"/>
-              </svg>
-            </button>
-            <button 
-              className={clsx('view-mode-btn', { active: viewMode === 'unified' })}
-              onClick={() => setViewMode('unified')}
-              title="Unified View"
-            >
-              <svg viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1 1v14h14V1H1zm1 1h12v12H2V2z"/>
-              </svg>
-            </button>
-          </div>
+              {languages.map((option) => (
+                <option key={option} value={option}>
+                  {option.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      </div>
-
-      <div className="diff-viewer-input">
-        <div className="input-pane">
-          <div className="pane-header">
-            <span className="pane-title">Original</span>
-            <button 
-              className="clear-btn"
-              onClick={() => setLeftText('')}
-              title="Clear"
-            >
-              Clear
-            </button>
-          </div>
-          <textarea
-            className="code-input"
-            value={leftText}
-            onChange={(e) => setLeftText(e.target.value)}
-            onPaste={handlePaste(setLeftText)}
-            placeholder="Paste or type your original code here..."
-            spellCheck={false}
-          />
-        </div>
-        <div className="input-pane">
-          <div className="pane-header">
-            <span className="pane-title">Modified</span>
-            <button 
-              className="clear-btn"
-              onClick={() => setRightText('')}
-              title="Clear"
-            >
-              Clear
-            </button>
-          </div>
-          <textarea
-            className="code-input"
-            value={rightText}
-            onChange={(e) => setRightText(e.target.value)}
-            onPaste={handlePaste(setRightText)}
-            placeholder="Paste or type your modified code here..."
-            spellCheck={false}
-          />
-        </div>
-      </div>
-
-      <div className="diff-viewer-output">
-        {viewMode === 'split' ? (
-          <div className="diff-split-view">
-            <div className="diff-pane diff-pane-left">
-              <div className="diff-pane-header">
-                <span>Original</span>
-              </div>
-              <div className="diff-content">
-                {diffLines.map((line, index) => (
-                  <div
-                    key={index}
-                    className={clsx('diff-line', {
-                      'diff-line-removed': line.type === 'removed',
-                      'diff-line-empty': line.type === 'added',
-                    })}
-                  >
-                    <span className="line-number">
-                      {line.leftLineNumber || ''}
-                    </span>
-                    <pre className="line-content">
-                      {line.type !== 'added' && (
-                        <code 
-                          dangerouslySetInnerHTML={{ 
-                            __html: highlightSyntax(line.leftContent) 
-                          }} 
-                        />
-                      )}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="diff-pane diff-pane-right">
-              <div className="diff-pane-header">
-                <span>Modified</span>
-              </div>
-              <div className="diff-content">
-                {diffLines.map((line, index) => (
-                  <div
-                    key={index}
-                    className={clsx('diff-line', {
-                      'diff-line-added': line.type === 'added',
-                      'diff-line-empty': line.type === 'removed',
-                    })}
-                  >
-                    <span className="line-number">
-                      {line.rightLineNumber || ''}
-                    </span>
-                    <pre className="line-content">
-                      {line.type !== 'removed' && (
-                        <code 
-                          dangerouslySetInnerHTML={{ 
-                            __html: highlightSyntax(line.rightContent) 
-                          }} 
-                        />
-                      )}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="diff-unified-view">
-            <div className="diff-pane">
-              <div className="diff-pane-header">
-                <span>Changes</span>
-              </div>
-              <div className="diff-content">
-                {diffLines.map((line, index) => (
-                  <div
-                    key={index}
-                    className={clsx('diff-line', {
-                      'diff-line-added': line.type === 'added',
-                      'diff-line-removed': line.type === 'removed',
-                    })}
-                  >
-                    <span className="line-number">
-                      {line.type === 'removed' 
-                        ? line.leftLineNumber 
-                        : line.rightLineNumber || ''}
-                    </span>
-                    <span className="diff-marker">
-                      {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
-                    </span>
-                    <pre className="line-content">
-                      <code 
-                        dangerouslySetInnerHTML={{ 
-                          __html: highlightSyntax(
-                            line.type === 'removed' ? line.leftContent : line.rightContent
-                          ) 
-                        }} 
-                      />
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+      </header>
+      <div className="diff-viewer-body">
+        <EditorPane
+          title="Original"
+          value={originalText}
+          placeholder="Paste or type your original code here..."
+          segments={originalSegments}
+          onChange={setOriginalText}
+          onClear={() => setOriginalText('')}
+          onPaste={createPasteHandler(setOriginalText)}
+          highlightCode={highlightCode}
+        />
+        <EditorPane
+          title="Modified"
+          value={modifiedText}
+          placeholder="Paste or type your modified code here..."
+          segments={modifiedSegments}
+          onChange={setModifiedText}
+          onClear={() => setModifiedText('')}
+          onPaste={createPasteHandler(setModifiedText)}
+          highlightCode={highlightCode}
+        />
       </div>
     </div>
   );
