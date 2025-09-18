@@ -1,2 +1,2 @@
 export { default } from './DiffViewer';
-export type { DiffLine, DiffType, DiffViewMode, DiffStats } from './types';
+export type { DiffComputation, DiffLineType, DiffStats, PaneDiffLine } from './types';
