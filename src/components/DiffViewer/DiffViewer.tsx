@@ -1,3 +1,4 @@
+/* eslint-disable no-self-assign */
 import {
   useMemo,
   useState,
@@ -17,11 +18,8 @@ import typescript from 'highlight.js/lib/languages/typescript';
 import json from 'highlight.js/lib/languages/json';
 import xml from 'highlight.js/lib/languages/xml'; // html
 import css from 'highlight.js/lib/languages/css';
-import plaintext from 'highlight.js/lib/languages/plaintext'; // <-- AQUI
+import plaintext from 'highlight.js/lib/languages/plaintext';
 
-import 'highlight.js/styles/vs2015.css';
-
-// Tema (elige el que te guste; vs2015 ≈ VSCode Dark+)
 import 'highlight.js/styles/vs2015.css';
 
 import './DiffViewer.css';
@@ -34,7 +32,6 @@ hljs.registerLanguage('json', json);
 hljs.registerLanguage('xml', xml);
 hljs.registerLanguage('css', css);
 hljs.registerLanguage('plaintext', plaintext);
-
 
 interface DiffComputation {
   original: DiffSegment[];
@@ -54,6 +51,8 @@ interface EditorPaneProps {
 }
 
 // ---------------- utils ----------------
+
+const INDENT = '  '; // 2 espacios (cámbialo por '\t' si prefieres tab real)
 
 const escapeHtml = (value: string): string =>
   value
@@ -114,7 +113,6 @@ const getStatsForType = (segments: DiffSegment[], type: DiffSegmentType): number
     .reduce((total, segment) => total + countLines(segment.value), 0);
 
 /** ---------- AUTO-DETECCIÓN DE LENGUAJE ---------- */
-// subset controlado para la auto-detección (coincide con tus tipos)
 const HLJS_SUBSET: LanguageOption[] = [
   'javascript',
   'typescript',
@@ -142,6 +140,75 @@ const highlightCode = (code: string, lang: LanguageOption): string => {
     return escapeHtml(code);
   }
 };
+
+// ---------------- helpers de edición ----------------
+
+const getLineStart = (text: string, index: number) =>
+  text.lastIndexOf('\n', Math.max(0, index - 1)) + 1;
+
+const getLineEnd = (text: string, index: number) => {
+  const nl = text.indexOf('\n', index);
+  return nl === -1 ? text.length : nl;
+};
+
+function indentSelection(text: string, selStart: number, selEnd: number) {
+  const start = getLineStart(text, selStart);
+  const end = getLineEnd(text, selEnd);
+  const before = text.slice(0, start);
+  const block = text.slice(start, end);
+  const after = text.slice(end);
+
+  const indented = block
+    .split('\n')
+    .map(line => INDENT + line)
+    .join('\n');
+
+  const newText = before + indented + after;
+  const newStart = selStart + INDENT.length;
+  const newEnd = selEnd + INDENT.length * (block.split('\n').length);
+  return { newText, newStart, newEnd };
+}
+
+function outdentSelection(text: string, selStart: number, selEnd: number) {
+  const start = getLineStart(text, selStart);
+  const end = getLineEnd(text, selEnd);
+  const before = text.slice(0, start);
+  const block = text.slice(start, end);
+  const after = text.slice(end);
+
+  let removedTotal = 0;
+  const outdented = block
+    .split('\n')
+    .map(line => {
+      if (line.startsWith(INDENT)) {
+        removedTotal += INDENT.length;
+        return line.slice(INDENT.length);
+      }
+      if (line.startsWith('\t')) {
+        removedTotal += 1;
+        return line.slice(1);
+      }
+      return line;
+    })
+    .join('\n');
+
+  const newText = before + outdented + after;
+
+  // ajustar selección: no dejes que vaya por debajo del inicio real
+  const firstLineRemoved = text.slice(start, start + INDENT.length) === INDENT ? INDENT.length
+                        : text[start] === '\t' ? 1 : 0;
+
+  const newStart = Math.max(start, selStart - firstLineRemoved);
+  const linesCount = block.split('\n').length;
+  const newEnd = Math.max(newStart, selEnd - removedTotal);
+
+  return { newText, newStart, newEnd, linesCount };
+}
+
+function insertAt(text: string, start: number, end: number, insert: string) {
+  return text.slice(0, start) + insert + text.slice(end);
+}
+
 // ---------------- componentes ----------------
 
 const EditorPane = ({
@@ -167,6 +234,85 @@ const EditorPane = ({
   useEffect(() => {
     handleScroll();
   }, [handleScroll, value, segments]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+
+    const selStart = ta.selectionStart ?? 0;
+    const selEnd = ta.selectionEnd ?? 0;
+
+    // TAB / SHIFT+TAB
+    if (e.key === 'Tab') {
+      e.preventDefault();
+
+      // selección múltiple líneas → indentar todas
+      if (selStart !== selEnd) {
+        if (e.shiftKey) {
+          const { newText, newStart, newEnd } = outdentSelection(value, selStart, selEnd);
+          onChange(newText);
+          requestAnimationFrame(() => {
+            ta.selectionStart = newStart;
+            ta.selectionEnd = newEnd;
+          });
+        } else {
+          const { newText, newStart, newEnd } = indentSelection(value, selStart, selEnd);
+          onChange(newText);
+          requestAnimationFrame(() => {
+            ta.selectionStart = newStart;
+            ta.selectionEnd = newEnd;
+          });
+        }
+        return;
+      }
+
+      // sin selección → insertar indent en la posición
+      if (e.shiftKey) {
+        // outdent en la línea actual
+        const lineStart = getLineStart(value, selStart);
+        if (value.slice(lineStart, lineStart + INDENT.length) === INDENT) {
+          const newText = insertAt(value, lineStart, lineStart + INDENT.length, '');
+          onChange(newText);
+          const newPos = Math.max(lineStart, selStart - INDENT.length);
+          requestAnimationFrame(() => {
+            ta.selectionStart = ta.selectionEnd = newPos;
+          });
+        } else if (value[lineStart] === '\t') {
+          const newText = insertAt(value, lineStart, lineStart + 1, '');
+          onChange(newText);
+          const newPos = Math.max(lineStart, selStart - 1);
+          requestAnimationFrame(() => {
+            ta.selectionStart = ta.selectionEnd = newPos;
+          });
+        }
+      } else {
+        const newText = insertAt(value, selStart, selEnd, INDENT);
+        onChange(newText);
+        const caret = selStart + INDENT.length;
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = caret;
+        });
+      }
+      return;
+    }
+
+    // ENTER → auto-indent
+    if (e.key === 'Enter' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      const lineStart = getLineStart(value, selStart);
+      const currentLine = value.slice(lineStart, selStart);
+      const leading = currentLine.match(/^[ \t]*/)?.[0] ?? '';
+      const insertion = '\n' + leading;
+      const newText = insertAt(value, selStart, selEnd, insertion);
+      onChange(newText);
+      const caret = selStart + insertion.length;
+      requestAnimationFrame(() => {
+        ta.selectionStart = ta.selectionEnd = caret;
+        ta.scrollTop = ta.scrollTop; // mantiene el scroll
+      });
+      return;
+    }
+  }, [onChange, value]);
 
   const highlightedSegments = useMemo(
     () =>
@@ -204,6 +350,7 @@ const EditorPane = ({
           onChange={(event) => onChange(event.target.value)}
           onScroll={handleScroll}
           onPaste={onPaste}
+          onKeyDown={handleKeyDown}
         />
         <pre ref={highlightRef} className="code-highlight" aria-hidden="true">
           <code>
