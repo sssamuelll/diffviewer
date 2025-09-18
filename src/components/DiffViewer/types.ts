@@ -1,16 +1,21 @@
-export type DiffType = 'added' | 'removed' | 'unchanged';
+export type LanguageOption =
+  | 'javascript'
+  | 'typescript'
+  | 'jsx'
+  | 'tsx'
+  | 'css'
+  | 'json'
+  | 'plaintext';
 
-export type DiffViewMode = 'split' | 'unified';
+export type DiffSegmentType = 'equal' | 'insert' | 'delete' | 'modify';
 
-export interface DiffLine {
-  type: DiffType;
-  leftContent: string;
-  rightContent: string;
-  leftLineNumber: number | null;
-  rightLineNumber: number | null;
+export interface DiffSegment {
+  value: string;
+  type: DiffSegmentType;
 }
 
 export interface DiffStats {
   additions: number;
   deletions: number;
+  modifications: number;
 }
