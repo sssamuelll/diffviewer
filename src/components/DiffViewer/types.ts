@@ -5,6 +5,7 @@ export type LanguageOption =
   | 'tsx'
   | 'css'
   | 'json'
+  | 'xml'
   | 'plaintext';
 
 export type DiffSegmentType = 'equal' | 'insert' | 'delete' | 'modify';

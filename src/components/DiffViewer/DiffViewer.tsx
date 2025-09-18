@@ -4,24 +4,37 @@ import {
   useCallback,
   useEffect,
   useRef,
-} from 'react';
-import type {
-  ClipboardEvent as ReactClipboardEvent,
-  Dispatch,
-  ReactElement,
-  SetStateAction,
+  type Dispatch,
+  type ReactElement,
+  type SetStateAction,
 } from 'react';
 import * as Diff from 'diff';
-import Prism from 'prismjs';
-import '../../styles/prism-vsc-dark-plus.css';
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-typescript';
-import 'prismjs/components/prism-jsx';
-import 'prismjs/components/prism-tsx';
-import 'prismjs/components/prism-css';
-import 'prismjs/components/prism-json';
+
+// ⬇️ highlight.js
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+import typescript from 'highlight.js/lib/languages/typescript';
+import json from 'highlight.js/lib/languages/json';
+import xml from 'highlight.js/lib/languages/xml'; // html
+import css from 'highlight.js/lib/languages/css';
+import plaintext from 'highlight.js/lib/languages/plaintext'; // <-- AQUI
+
+import 'highlight.js/styles/vs2015.css';
+
+// Tema (elige el que te guste; vs2015 ≈ VSCode Dark+)
+import 'highlight.js/styles/vs2015.css';
+
 import './DiffViewer.css';
 import type { DiffSegment, DiffStats, DiffSegmentType, LanguageOption } from './types';
+
+// registra solo lo que usas (bundle pequeño)
+hljs.registerLanguage('javascript', javascript);
+hljs.registerLanguage('typescript', typescript);
+hljs.registerLanguage('json', json);
+hljs.registerLanguage('xml', xml);
+hljs.registerLanguage('css', css);
+hljs.registerLanguage('plaintext', plaintext);
+
 
 interface DiffComputation {
   original: DiffSegment[];
@@ -35,19 +48,12 @@ interface EditorPaneProps {
   segments: DiffSegment[];
   onChange: (value: string) => void;
   onClear: () => void;
-  onPaste: (event: ReactClipboardEvent<HTMLTextAreaElement>) => void;
-  highlightCode: (code: string) => string;
+  onPaste: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+  detectedLanguage: LanguageOption;
+  highlightCode: (code: string, lang: LanguageOption) => string;
 }
 
-const languages: LanguageOption[] = [
-  'javascript',
-  'typescript',
-  'jsx',
-  'tsx',
-  'css',
-  'json',
-  'plaintext',
-];
+// ---------------- utils ----------------
 
 const escapeHtml = (value: string): string =>
   value
@@ -64,9 +70,7 @@ const computeDiffSegments = (original: string, modified: string): DiffComputatio
 
   for (let index = 0; index < parts.length; index += 1) {
     const part = parts[index];
-    if (!part.value) {
-      continue;
-    }
+    if (!part.value) continue;
 
     if (part.removed && parts[index + 1]?.added) {
       const addedPart = parts[index + 1];
@@ -96,17 +100,11 @@ const computeDiffSegments = (original: string, modified: string): DiffComputatio
 };
 
 const countLines = (value: string): number => {
-  if (!value) {
-    return 0;
-  }
-
+  if (!value) return 0;
   const lines = value.split('\n');
-  return lines.reduce((total, line, lineIndex) => {
-    const isLastLine = lineIndex === lines.length - 1;
-    if (line.length > 0 || !isLastLine) {
-      return total + 1;
-    }
-    return total;
+  return lines.reduce((total, line, i) => {
+    const isLast = i === lines.length - 1;
+    return total + ((line.length > 0 || !isLast) ? 1 : 0);
   }, 0);
 };
 
@@ -114,6 +112,37 @@ const getStatsForType = (segments: DiffSegment[], type: DiffSegmentType): number
   segments
     .filter((segment) => segment.type === type)
     .reduce((total, segment) => total + countLines(segment.value), 0);
+
+/** ---------- AUTO-DETECCIÓN DE LENGUAJE ---------- */
+// subset controlado para la auto-detección (coincide con tus tipos)
+const HLJS_SUBSET: LanguageOption[] = [
+  'javascript',
+  'typescript',
+  'jsx',
+  'tsx',
+  'json',
+  'css',
+  'plaintext',
+];
+
+const detectLanguage = (text: string): LanguageOption => {
+  const t = text.trim();
+  if (!t) return 'plaintext';
+  const res = hljs.highlightAuto(t, HLJS_SUBSET);
+  const lang = (res.language as LanguageOption) || 'plaintext';
+  return HLJS_SUBSET.includes(lang) ? lang : 'plaintext';
+};
+
+const highlightCode = (code: string, lang: LanguageOption): string => {
+  if (!code) return '';
+  if (lang === 'plaintext') return escapeHtml(code);
+  try {
+    return hljs.highlight(code, { language: lang }).value;
+  } catch {
+    return escapeHtml(code);
+  }
+};
+// ---------------- componentes ----------------
 
 const EditorPane = ({
   title,
@@ -123,16 +152,14 @@ const EditorPane = ({
   onChange,
   onClear,
   onPaste,
+  detectedLanguage,
   highlightCode,
 }: EditorPaneProps): ReactElement => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
 
   const handleScroll = useCallback(() => {
-    if (!textareaRef.current || !highlightRef.current) {
-      return;
-    }
-
+    if (!textareaRef.current || !highlightRef.current) return;
     highlightRef.current.scrollTop = textareaRef.current.scrollTop;
     highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
   }, []);
@@ -146,15 +173,19 @@ const EditorPane = ({
       segments.map((segment, index) => ({
         key: `${segment.type}-${index}`,
         type: segment.type,
-        html: highlightCode(segment.value) || escapeHtml(segment.value) || '&#8203;',
+        html: highlightCode(segment.value, detectedLanguage) || escapeHtml(segment.value) || '&#8203;',
       })),
-    [segments, highlightCode]
+    [segments, highlightCode, detectedLanguage]
   );
+
+  const prettyName = (lang: LanguageOption) => lang.toUpperCase();
 
   return (
     <section className="editor-pane">
       <div className="editor-pane-header">
-        <span className="pane-title">{title}</span>
+        <span className="pane-title">
+          {title} {detectedLanguage !== 'plaintext' ? `· ${prettyName(detectedLanguage)}` : ''}
+        </span>
         <button type="button" className="clear-btn" onClick={onClear}>
           Clear
         </button>
@@ -198,36 +229,14 @@ const EditorPane = ({
 const DiffViewer = (): ReactElement => {
   const [originalText, setOriginalText] = useState<string>('');
   const [modifiedText, setModifiedText] = useState<string>('');
-  const [language, setLanguage] = useState<LanguageOption>('javascript');
 
   const { original: originalSegments, modified: modifiedSegments } = useMemo(
     () => computeDiffSegments(originalText, modifiedText),
     [originalText, modifiedText]
   );
 
-  const highlightCode = useCallback(
-    (code: string) => {
-      if (!code) {
-        return '';
-      }
-
-      if (language === 'plaintext') {
-        return escapeHtml(code);
-      }
-
-      const grammar = Prism.languages[language];
-      if (!grammar) {
-        return escapeHtml(code);
-      }
-
-      try {
-        return Prism.highlight(code, grammar, language);
-      } catch {
-        return escapeHtml(code);
-      }
-    },
-    [language]
-  );
+  const originalLang = useMemo<LanguageOption>(() => detectLanguage(originalText), [originalText]);
+  const modifiedLang = useMemo<LanguageOption>(() => detectLanguage(modifiedText), [modifiedText]);
 
   const stats = useMemo<DiffStats>(() => {
     const additions = getStatsForType(modifiedSegments, 'insert');
@@ -244,7 +253,7 @@ const DiffViewer = (): ReactElement => {
 
   const createPasteHandler = useCallback(
     (setter: Dispatch<SetStateAction<string>>) =>
-      (event: ReactClipboardEvent<HTMLTextAreaElement>) => {
+      (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
         event.preventDefault();
         const text = event.clipboardData.getData('text');
         setter(text);
@@ -269,22 +278,10 @@ const DiffViewer = (): ReactElement => {
             <span className="stat deletions">-{stats.deletions}</span>
             <span className="stat modifications">~{stats.modifications}</span>
           </div>
-          <label className="language-label">
-            <span className="sr-only">Select language</span>
-            <select
-              className="language-selector"
-              value={language}
-              onChange={(event) => setLanguage(event.target.value as LanguageOption)}
-            >
-              {languages.map((option) => (
-                <option key={option} value={option}>
-                  {option.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Detección automática por panel con highlight.js */}
         </div>
       </header>
+
       <div className="diff-viewer-body">
         <EditorPane
           title="Original"
@@ -294,6 +291,7 @@ const DiffViewer = (): ReactElement => {
           onChange={setOriginalText}
           onClear={() => setOriginalText('')}
           onPaste={createPasteHandler(setOriginalText)}
+          detectedLanguage={originalLang}
           highlightCode={highlightCode}
         />
         <EditorPane
@@ -304,6 +302,7 @@ const DiffViewer = (): ReactElement => {
           onChange={setModifiedText}
           onClear={() => setModifiedText('')}
           onPaste={createPasteHandler(setModifiedText)}
+          detectedLanguage={modifiedLang}
           highlightCode={highlightCode}
         />
       </div>

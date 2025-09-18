@@ -17,6 +17,7 @@
   --vscode-button-hover: #1177bb;
   --vscode-input-bg: #3c3c3c;
   --vscode-input-border: #464647;
+  --baseline-nudge: 1px;
 }
 
 .diff-viewer-container {
@@ -191,6 +192,19 @@
   z-index: 2;
 }
 
+.code-input,
+.code-highlight,
+.code-highlight code,
+.diff-segment {
+  box-sizing: border-box;
+  tab-size: 2;
+  font-variant-ligatures: none;
+  letter-spacing: 0;
+  font-family: 'Menlo','Monaco','Courier New',monospace !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
 .code-input::selection {
   background: rgba(0, 120, 215, 0.35);
 }
@@ -200,14 +214,13 @@
   inset: 0;
   margin: 0;
   padding: 12px;
-  overflow: auto;
+  overflow: hidden;            /* <= antes estaba auto */
   pointer-events: none;
   background-color: var(--vscode-editor-bg);
   color: var(--vscode-text);
   font: inherit;
   line-height: 1.5;
   white-space: pre;
-  scrollbar-width: none;
 }
 
 .code-highlight code {
