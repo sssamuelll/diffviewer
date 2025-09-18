@@ -1,16 +1,17 @@
-export type DiffType = 'added' | 'removed' | 'unchanged';
-
-export type DiffViewMode = 'split' | 'unified';
+export type DiffLineType = 'unchanged' | 'added' | 'removed' | 'modified';
 
 export interface DiffLine {
-  type: DiffType;
-  leftContent: string;
-  rightContent: string;
-  leftLineNumber: number | null;
-  rightLineNumber: number | null;
+  lineNumber: number | null;
+  content: string;
+  type: DiffLineType;
+}
+
+export interface HighlightedDiffLine extends DiffLine {
+  highlightedContent: string;
 }
 
 export interface DiffStats {
   additions: number;
   deletions: number;
+  modifications: number;
 }

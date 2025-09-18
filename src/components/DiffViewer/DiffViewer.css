@@ -81,6 +81,11 @@
   color: #ff6188;
 }
 
+.stat.modifications {
+  background-color: rgba(255, 197, 61, 0.3);
+  color: #ffc53d;
+}
+
 .language-selector {
   padding: 4px 8px;
   background-color: var(--vscode-input-bg);
@@ -96,54 +101,23 @@
   background-color: var(--vscode-hover);
 }
 
-.view-mode-toggle {
+.diff-viewer-body {
+  flex: 1;
   display: flex;
-  background-color: var(--vscode-input-bg);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 3px;
+  background-color: var(--vscode-border);
   overflow: hidden;
 }
 
-.view-mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 26px;
-  background: transparent;
-  border: none;
-  color: var(--vscode-text);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.view-mode-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.view-mode-btn:hover {
-  background-color: var(--vscode-hover);
-}
-
-.view-mode-btn.active {
-  background-color: var(--vscode-button-bg);
-}
-
-.diff-viewer-input {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background-color: var(--vscode-border);
-  border-bottom: 1px solid var(--vscode-border);
-  min-height: 200px;
-  max-height: 300px;
-}
-
-.input-pane {
+.diff-editor-pane {
+  flex: 1;
   display: flex;
   flex-direction: column;
   background-color: var(--vscode-editor-bg);
+  border-right: 1px solid var(--vscode-border);
+}
+
+.diff-editor-pane:last-child {
+  border-right: none;
 }
 
 .pane-header {
@@ -178,159 +152,151 @@
   border-color: var(--vscode-button-bg);
 }
 
-.code-input {
+.editor-wrapper {
+  position: relative;
   flex: 1;
-  padding: 12px;
+  overflow: hidden;
   background-color: var(--vscode-editor-bg);
-  color: var(--vscode-text);
+}
+
+.diff-editor-textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 12px 16px 12px 80px;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--vscode-text);
   border: none;
-  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 13px;
-  line-height: 1.5;
   resize: none;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre;
+  overflow: auto;
+  z-index: 2;
+}
+
+.diff-editor-textarea:focus {
   outline: none;
 }
 
-.code-input::placeholder {
-  color: #6e6e6e;
-  font-style: italic;
+.diff-editor-textarea::placeholder {
+  color: transparent;
 }
 
-.diff-viewer-output {
-  flex: 1;
-  overflow: auto;
-  background-color: var(--vscode-editor-bg);
+.diff-editor-textarea::selection {
+  background: rgba(128, 189, 255, 0.35);
 }
 
-.diff-split-view {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  height: 100%;
-  background-color: var(--vscode-border);
-}
-
-.diff-unified-view {
-  height: 100%;
-}
-
-.diff-pane {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--vscode-editor-bg);
+.editor-content {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   overflow: hidden;
+  z-index: 1;
 }
 
-.diff-pane-header {
-  padding: 8px 12px;
-  background-color: var(--vscode-sidebar-bg);
-  border-bottom: 1px solid var(--vscode-border);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: #cccccc;
+.editor-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 100%;
+  padding: 12px 0;
+  box-sizing: border-box;
 }
 
-.diff-content {
-  flex: 1;
-  overflow: auto;
-  font-size: 13px;
-  line-height: 20px;
-}
-
-.diff-line {
+.editor-line {
   display: flex;
   min-height: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.diff-line-added {
-  background-color: var(--vscode-added-bg);
-}
-
-.diff-line-removed {
-  background-color: var(--vscode-removed-bg);
-}
-
-.diff-line-empty {
-  background-color: var(--vscode-sidebar-bg);
-  opacity: 0.5;
+  line-height: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .line-number {
-  display: inline-block;
-  min-width: 50px;
-  padding: 0 8px;
+  width: 48px;
+  padding: 0 8px 0 12px;
   color: var(--vscode-line-number);
   text-align: right;
-  background-color: rgba(0, 0, 0, 0.2);
-  user-select: none;
-  border-right: 1px solid var(--vscode-border);
-}
-
-.diff-marker {
-  display: inline-block;
-  width: 20px;
-  text-align: center;
-  color: var(--vscode-text);
-  font-weight: bold;
   user-select: none;
 }
 
-.line-content {
+.line-code {
   flex: 1;
-  margin: 0;
-  padding: 0 12px;
+  padding: 0 16px 0 12px;
   white-space: pre;
-  overflow-x: auto;
+  display: block;
+  border-left: 3px solid transparent;
 }
 
-.line-content code {
+.editor-line-added {
+  background-color: var(--vscode-added-bg);
+}
+
+.editor-line-added .line-code {
+  border-left-color: var(--vscode-added-border);
+}
+
+.editor-line-removed {
+  background-color: var(--vscode-removed-bg);
+}
+
+.editor-line-removed .line-code {
+  border-left-color: var(--vscode-removed-border);
+}
+
+.editor-line-modified {
+  background-color: var(--vscode-modified-bg);
+}
+
+.editor-line-modified .line-code {
+  border-left-color: var(--vscode-modified-border);
+}
+
+.editor-placeholder {
+  padding: 12px 16px 12px 80px;
+  color: #6e6e6e;
+  font-style: italic;
+  white-space: pre-wrap;
+}
+
+.editor-lines span,
+.editor-placeholder {
   font-family: inherit;
-  background: transparent;
+  font-size: 13px;
 }
 
 /* Scrollbar styling */
-.diff-content::-webkit-scrollbar,
-.code-input::-webkit-scrollbar {
+.editor-wrapper ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-.diff-content::-webkit-scrollbar-track,
-.code-input::-webkit-scrollbar-track {
+.editor-wrapper ::-webkit-scrollbar-track {
   background: var(--vscode-editor-bg);
 }
 
-.diff-content::-webkit-scrollbar-thumb,
-.code-input::-webkit-scrollbar-thumb {
+.editor-wrapper ::-webkit-scrollbar-thumb {
   background: #424242;
   border-radius: 5px;
 }
 
-.diff-content::-webkit-scrollbar-thumb:hover,
-.code-input::-webkit-scrollbar-thumb:hover {
+.editor-wrapper ::-webkit-scrollbar-thumb:hover {
   background: #4e4e4e;
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
-  .diff-viewer-input {
-    grid-template-columns: 1fr;
-    max-height: 400px;
-  }
-  
-  .diff-split-view {
-    grid-template-columns: 1fr;
-  }
-  
-  .diff-viewer-controls {
+  .diff-viewer-body {
     flex-direction: column;
-    gap: 8px;
   }
-  
-  .line-number {
-    min-width: 40px;
-    font-size: 11px;
+
+  .diff-editor-pane {
+    border-right: none;
+    border-bottom: 1px solid var(--vscode-border);
+  }
+
+  .diff-editor-pane:last-child {
+    border-bottom: none;
   }
 }
