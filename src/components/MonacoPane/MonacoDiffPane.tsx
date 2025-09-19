@@ -7,6 +7,7 @@ import {
 import type { editor as MonacoEditor } from 'monaco-editor';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import type { LanguageOption } from '../DiffViewer/types';
+import normalizeWhitespace from '../../utils/normalizeWhitespace';
 
 type MonacoLang = 'javascript' | 'typescript' | 'json' | 'html' | 'css' | 'plaintext';
 
@@ -81,11 +82,13 @@ export default function MonacoDiff({
 
   // Handle external changes to original prop (like Clear button)
   useEffect(() => {
-    if (originalModelRef.current && original !== originalModelRef.current.getValue()) {
+    if (!originalModelRef.current) return;
+    const normalized = normalizeWhitespace(original);
+    if (normalized !== originalModelRef.current.getValue()) {
       const editor = editorRef.current?.getOriginalEditor();
       if (editor) {
         const viewState = editor.saveViewState();
-        originalModelRef.current.setValue(original);
+        originalModelRef.current.setValue(normalized);
         if (viewState) {
           editor.restoreViewState(viewState);
         }
@@ -96,11 +99,13 @@ export default function MonacoDiff({
 
   // Handle external changes to modified prop
   useEffect(() => {
-    if (modifiedModelRef.current && modified !== modifiedModelRef.current.getValue()) {
+    if (!modifiedModelRef.current) return;
+    const normalized = normalizeWhitespace(modified);
+    if (normalized !== modifiedModelRef.current.getValue()) {
       const editor = editorRef.current?.getModifiedEditor();
       if (editor) {
         const viewState = editor.saveViewState();
-        modifiedModelRef.current.setValue(modified);
+        modifiedModelRef.current.setValue(normalized);
         if (viewState) {
           editor.restoreViewState(viewState);
         }
@@ -123,8 +128,10 @@ export default function MonacoDiff({
     const modifiedEditor = editor.getModifiedEditor();
 
     // Create models manually instead of using DiffEditor's built-in models
-    originalModelRef.current = monaco.editor.createModel(original, stickyLanguage);
-    modifiedModelRef.current = monaco.editor.createModel(modified, stickyLanguage);
+    const normalizedOriginal = normalizeWhitespace(original);
+    const normalizedModified = normalizeWhitespace(modified);
+    originalModelRef.current = monaco.editor.createModel(normalizedOriginal, stickyLanguage);
+    modifiedModelRef.current = monaco.editor.createModel(normalizedModified, stickyLanguage);
     
     // Set our custom models on the editor
     editor.setModel({
@@ -166,10 +173,32 @@ export default function MonacoDiff({
 
     // Use debounced callbacks instead of immediate ones
     originalModelRef.current.onDidChangeContent(() => {
-      debouncedOriginalChange(originalModelRef.current!.getValue());
+      const value = originalModelRef.current!.getValue();
+      const normalized = normalizeWhitespace(value);
+      if (value !== normalized) {
+        const editorInstance = editorRef.current?.getOriginalEditor();
+        const viewState = editorInstance?.saveViewState();
+        originalModelRef.current!.setValue(normalized);
+        if (viewState) {
+          editorInstance?.restoreViewState(viewState);
+        }
+        return;
+      }
+      debouncedOriginalChange(normalized);
     });
     modifiedModelRef.current.onDidChangeContent(() => {
-      debouncedModifiedChange(modifiedModelRef.current!.getValue());
+      const value = modifiedModelRef.current!.getValue();
+      const normalized = normalizeWhitespace(value);
+      if (value !== normalized) {
+        const editorInstance = editorRef.current?.getModifiedEditor();
+        const viewState = editorInstance?.saveViewState();
+        modifiedModelRef.current!.setValue(normalized);
+        if (viewState) {
+          editorInstance?.restoreViewState(viewState);
+        }
+        return;
+      }
+      debouncedModifiedChange(normalized);
     });
 
     // Limpia markers por si algún worker los hubiese puesto
