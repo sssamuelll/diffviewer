@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useState, type ReactElement } from 'react';
 import * as Diff from 'diff';
 
 // HLJS solo para auto-detección
@@ -14,6 +14,7 @@ import 'highlight.js/styles/vs2015.css';
 import './DiffViewer.css';
 import MonacoDiff from '../MonacoPane/MonacoDiffPane';
 import type { DiffSegment, DiffStats, DiffSegmentType, LanguageOption } from './types';
+import normalizeWhitespace from '../../utils/normalizeWhitespace';
 
 // registra lenguajes usados
 hljs.registerLanguage('javascript', javascript);
@@ -83,6 +84,14 @@ const DiffViewer = (): ReactElement => {
   const [originalText, setOriginalText] = useState<string>('');
   const [modifiedText, setModifiedText] = useState<string>('');
 
+  const handleOriginalChange = useCallback((next: string) => {
+    setOriginalText(normalizeWhitespace(next));
+  }, [setOriginalText]);
+
+  const handleModifiedChange = useCallback((next: string) => {
+    setModifiedText(normalizeWhitespace(next));
+  }, [setModifiedText]);
+
   const { original: originalSegments, modified: modifiedSegments } = useMemo(
     () => computeDiffSegments(originalText, modifiedText),
     [originalText, modifiedText]
@@ -149,8 +158,8 @@ const DiffViewer = (): ReactElement => {
             modified={modifiedText}
             leftLang={originalLang}
             rightLang={modifiedLang}
-            onOriginalChange={setOriginalText}
-            onModifiedChange={setModifiedText}
+            onOriginalChange={handleOriginalChange}
+            onModifiedChange={handleModifiedChange}
           />
         </div>
       </div>
