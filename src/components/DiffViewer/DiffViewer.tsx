@@ -112,11 +112,7 @@ const DiffViewer = (): ReactElement => {
     <div className="diff-viewer-container">
       <header className="diff-viewer-header">
         <div className="diff-viewer-title">
-          <svg className="icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-            <path d="M13.5 2H10L9 1H4L3 2H2.5L2 2.5V6H3V3H6.5L7.5 2H8.5L9.5 3H13V12.5L13.5 13H10V14H13.5L14 13.5V2.5L13.5 2Z" />
-            <path d="M5.56 8.56L7 7.12L5.56 5.69L4.85 6.4L5.44 7H0V8H5.44L4.85 8.6L5.56 8.56Z" />
-            <path d="M9.41 12.41L8 11L9.41 9.59L10.12 10.3L9.53 10.89H12V5H11V9.89H9.53L10.12 9.3L9.41 9.34V12.41Z" />
-          </svg>
+          <img src="./fabicon.svg" alt="App icon" className="icon" />
           <span>Diff Viewer</span>
         </div>
         <div className="diff-viewer-controls">
